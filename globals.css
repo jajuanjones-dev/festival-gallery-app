@@ -1,0 +1,296 @@
+:root {
+  --bg: #15100c;
+  --surface: #201810;
+  --surface-2: #2b2117;
+  --border: #3c2f22;
+  --text: #f2e9dc;
+  --text-muted: #a8998a;
+  --accent: #e46a2e;
+  --accent-2: #f2b33d;
+  --success: #7fa36b;
+  --error: #d9694f;
+  --radius: 10px;
+  --font-display: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent-2);
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 1.5rem;
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  color: var(--accent-2);
+  margin-bottom: 3rem;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  text-align: center;
+  max-width: 32rem;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+.hero-sub {
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 26rem;
+  margin: 0 0 2.5rem;
+  line-height: 1.6;
+}
+
+/* Festival picker cards on the homepage */
+.festival-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.festival-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.3rem;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.festival-card:hover {
+  border-color: var(--accent);
+}
+
+.festival-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.festival-dates {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Date tabs on the event gallery */
+.date-tabs {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 64rem;
+  margin-bottom: 2rem;
+}
+
+.date-tab {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+}
+
+.date-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1a0f08;
+  font-weight: 600;
+}
+
+/* Hour-grouped sections within a day */
+.hour-block {
+  width: 100%;
+  max-width: 64rem;
+  margin-bottom: 2rem;
+}
+
+.hour-label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.75rem;
+}
+
+.button {
+  width: 100%;
+  background: var(--accent);
+  color: #1a0f08;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.button:hover {
+  background: var(--accent-2);
+}
+
+.button:disabled {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.error-text {
+  color: var(--error);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+/* Gallery grid */
+.gallery-header {
+  width: 100%;
+  max-width: 64rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1.5rem;
+}
+
+.gallery-grid {
+  width: 100%;
+  max-width: 64rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.photo-card {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: var(--surface);
+}
+
+.photo-card.selected {
+  border-color: var(--accent);
+}
+
+.photo-card img {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+}
+
+.photo-card .check {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: rgba(21, 16, 12, 0.75);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.photo-card.selected .check {
+  background: var(--accent);
+  color: #1a0f08;
+  border-color: var(--accent);
+}
+
+.checkout-bar {
+  position: sticky;
+  bottom: 1.5rem;
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 64rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.checkout-bar .price {
+  font-family: var(--font-mono);
+  color: var(--accent-2);
+}
+
+.checkout-bar .button {
+  width: auto;
+  padding: 0.7rem 1.5rem;
+}
+
+/* Past events section - visually secondary to current events */
+.past-events {
+  width: 100%;
+  max-width: 22rem;
+  margin-top: 2.5rem;
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.75rem;
+}
+
+.festival-card.past {
+  opacity: 0.7;
+}
+
+.festival-card.past:hover {
+  opacity: 1;
+}
