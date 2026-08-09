@@ -1,4 +1,5 @@
 import { stripe, calculatePrice } from "../../lib/stripe";
+import { getEvent } from "../../lib/d1";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -9,6 +10,11 @@ export default async function handler(req, res) {
 
   if (!festivalId || !Array.isArray(selectedIds) || selectedIds.length === 0) {
     return res.status(400).json({ error: "Select at least one photo." });
+  }
+
+  const event = await getEvent(festivalId);
+  if (!event) {
+    return res.status(404).json({ error: "We couldn't find that event." });
   }
 
   const { totalCents, isBundle } = calculatePrice(selectedIds.length);
@@ -23,8 +29,8 @@ export default async function handler(req, res) {
           currency: "usd",
           product_data: {
             name: isBundle
-              ? `All photos - ${festivalId}`
-              : `${selectedIds.length} photo(s) - ${festivalId}`,
+              ? `All photos - ${event.display_name}`
+              : `${selectedIds.length} photo(s) - ${event.display_name}`,
           },
           unit_amount: totalCents,
         },
