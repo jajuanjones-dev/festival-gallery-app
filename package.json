@@ -10,10 +10,12 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.600.0",
     "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "googleapis": "^140.0.1",
     "micro": "^10.0.1",
     "next": "14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "sharp": "^0.33.4",
     "stripe": "^16.2.0"
   }
 }
