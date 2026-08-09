@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 
+const REFRESH_MS = 15 * 60 * 1000;
+
 function pad(n) {
   return String(n).padStart(2, "0");
 }
@@ -53,128 +55,25 @@ export default function EventGallery() {
 
   useEffect(() => {
     if (!festivalId || !activeDate) return;
-    setLoading(true);
-    fetch(`/api/photos/${festivalId}?date=${activeDate}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setPhotos(data.photos || []);
-        setLoading(false);
-      });
-  }, [festivalId, activeDate]);
 
-  const timeBlocks = useMemo(() => groupByQuarterHour(photos), [photos]);
+    let cancelled = false;
 
-  function toggleSelect(photoId) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(photoId) ? next.delete(photoId) : next.add(photoId);
-      return next;
-    });
-  }
-
-  async function handleCheckout() {
-    setCheckingOut(true);
-    const selectedIds = photos.filter((p) => selected.has(p.id)).map((p) => p.id);
-
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ festivalId, selectedIds }),
-    });
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      setError(data.error || "Checkout failed - try again.");
-      setCheckingOut(false);
+    function loadPhotos(showSpinner) {
+      if (showSpinner) setLoading(true);
+      fetch(`/api/photos/${festivalId}?date=${activeDate}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          setPhotos(data.photos || []);
+          setLoading(false);
+        });
     }
-  }
 
-  if (error) {
-    return (
-      <div className="page">
-        <div className="wordmark">Eternal Flame Photos</div>
-        <h1 className="hero-title">We couldn't find that event</h1>
-        <p className="hero-sub">{error}</p>
-      </div>
-    );
-  }
+    loadPhotos(true);
+    const interval = setInterval(() => loadPhotos(false), REFRESH_MS);
 
-  if (!festival) {
-    return (
-      <div className="page">
-        <p className="hero-sub">Loading...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="page">
-      <div className="gallery-header">
-        <div>
-          <div className="wordmark" style={{ marginBottom: "0.25rem" }}>
-            Eternal Flame Photos
-          </div>
-          <p className="hero-sub" style={{ textAlign: "left", margin: 0 }}>
-            {festival.displayName}
-          </p>
-        </div>
-      </div>
-
-      <div className="date-tabs">
-        {festival.dates.map((d) => (
-          <button
-            key={d}
-            className={`date-tab ${d === activeDate ? "active" : ""}`}
-            onClick={() => setActiveDate(d)}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
-
-      {loading && <p className="hero-sub">Loading photos...</p>}
-
-      {!loading && photos.length === 0 && (
-        <p className="hero-sub">No photos posted for this day yet - check back soon.</p>
-      )}
-
-      {!loading &&
-        Object.entries(timeBlocks)
-          .sort()
-          .map(([blockLabel, blockPhotos]) => (
-            <div key={blockLabel} className="hour-block">
-              <h2 className="hour-label">{blockLabel}</h2>
-              <div className="gallery-grid">
-                {blockPhotos.map((photo) => (
-                  <div
-                    key={photo.id}
-                    className={`photo-card ${selected.has(photo.id) ? "selected" : ""}`}
-                    onClick={() => toggleSelect(photo.id)}
-                  >
-                    <img
-                      src={photo.previewUrl}
-                      alt=""
-                      draggable={false}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                    <div className="check">{selected.has(photo.id) ? "✓" : ""}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
-      {selected.size > 0 && (
-        <div className="checkout-bar">
-          <span>
-            {selected.size} photo{selected.size !== 1 ? "s" : ""} selected
-          </span>
-          <button className="button" onClick={handleCheckout} disabled={checkingOut}>
-            {checkingOut ? "Redirecting to checkout..." : "Get your photos"}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  },
