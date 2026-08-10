@@ -1,16 +1,18 @@
-import { getPhotosByFestivalAndDate } from "../../../lib/d1";
-import { getFestival } from "../../../lib/festivals";
+import { getPhotosByFestivalAndDate, getEvent, getDatesForEvent } from "../../../lib/d1";
 
 export default async function handler(req, res) {
   const { festivalId, date } = req.query;
 
-  const festival = getFestival(festivalId);
-  if (!festival) {
+  const event = await getEvent(festivalId);
+  if (!event) {
     return res.status(404).json({ error: "We couldn't find that event." });
   }
 
+  const dates = await getDatesForEvent(festivalId);
+  const festival = { festivalId: event.id, displayName: event.display_name, dates };
+
   const photos = await getPhotosByFestivalAndDate(festivalId, date);
-  const previewBase = process.env.PREVIEW_PUBLIC_URL; // e.g. https://pub-xxxx.r2.dev
+  const previewBase = process.env.PREVIEW_PUBLIC_URL;
 
   const shaped = photos.map((p) => ({
     id: p.id,
