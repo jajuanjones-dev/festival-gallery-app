@@ -10,12 +10,16 @@ export default function ReviewPage() {
   const [festivalId, setFestivalId] = useState("");
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   const [pending, setPending] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [message, setMessage] = useState("");
+
+  const [publishedPhotos, setPublishedPhotos] = useState([]);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     const saved = sessionStorage.getItem("admin_secret");
@@ -36,21 +40,25 @@ export default function ReviewPage() {
     setMessage("That secret was rejected - check ADMIN_SECRET and try again.");
   }
 
+  const loadEvents = useCallback(async () => {
+    const eventsRes = await fetch("/api/events");
+    const eventsData = await eventsRes.json();
+    return eventsData.active || [];
+  }, []);
+
   useEffect(() => {
     if (!unlocked) return;
 
     async function init() {
-      const [currentRes, eventsRes] = await Promise.all([
+      const [currentRes, activeList] = await Promise.all([
         fetch("/api/admin/current-event", { headers: authHeaders() }),
-        fetch("/api/events"),
+        loadEvents(),
       ]);
 
       if (currentRes.status === 401) return handleAuthFailure();
 
       const current = await currentRes.json();
-      const eventsData = await eventsRes.json();
 
-      const activeList = eventsData.active || [];
       const merged = activeList.some((e) => e.festivalId === current.festivalId)
         ? activeList
         : [{ festivalId: current.festivalId, displayName: current.displayName }, ...activeList];
@@ -85,6 +93,25 @@ export default function ReviewPage() {
     return () => clearInterval(interval);
   }, [loadPending]);
 
+  const loadPublished = useCallback(async () => {
+    if (!unlocked || !festivalId) return;
+    try {
+      const res = await fetch(
+        `/api/admin/published-photos?festivalId=${encodeURIComponent(festivalId)}`,
+        { headers: authHeaders() }
+      );
+      if (res.status === 401) return handleAuthFailure();
+      const data = await res.json();
+      setPublishedPhotos(data.photos || []);
+    } catch {
+      // non-critical, fail silently
+    }
+  }, [unlocked, festivalId, authHeaders]);
+
+  useEffect(() => {
+    loadPublished();
+  }, [loadPublished]);
+
   function handleUnlock(e) {
     e.preventDefault();
     sessionStorage.setItem("admin_secret", secret);
@@ -117,6 +144,31 @@ export default function ReviewPage() {
       setMessage("Couldn't save the name - try again.");
     } finally {
       setSavingName(false);
+    }
+  }
+
+  async function handleReorder(direction) {
+    if (!festivalId || reordering) return;
+    setReordering(true);
+    try {
+      const res = await fetch("/api/admin/reorder-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ festivalId, direction }),
+      });
+      if (res.status === 401) return handleAuthFailure();
+      const refreshed = await loadEvents();
+      setEvents((prev) => {
+        const merged = refreshed.some((e) => e.festivalId === festivalId)
+          ? refreshed
+          : prev;
+        return merged;
+      });
+      setMessage("Gallery order updated.");
+    } catch {
+      setMessage("Couldn't reorder - try again.");
+    } finally {
+      setReordering(false);
     }
   }
 
@@ -163,10 +215,30 @@ export default function ReviewPage() {
           ? `Published ${okIds.size}, ${failedCount} failed - check server logs.`
           : `Published ${okIds.size} photo${okIds.size === 1 ? "" : "s"} to "${nameDraft}".`
       );
+      loadPublished();
     } catch {
       setMessage("Publish failed - try again with a smaller batch.");
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function handleDelete(photoId) {
+    if (!window.confirm("Delete this photo? This can't be undone.")) return;
+    setDeletingId(photoId);
+    try {
+      const res = await fetch("/api/admin/delete-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ photoId }),
+      });
+      if (res.status === 401) return handleAuthFailure();
+      setPublishedPhotos((prev) => prev.filter((p) => p.id !== photoId));
+      setMessage("Photo deleted.");
+    } catch {
+      setMessage("Couldn't delete - try again.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -217,6 +289,7 @@ export default function ReviewPage() {
           gap: "0.75rem",
           marginBottom: "1rem",
           flexWrap: "wrap",
+          alignItems: "center",
         }}
       >
         <select
@@ -236,6 +309,25 @@ export default function ReviewPage() {
             </option>
           ))}
         </select>
+
+        <button
+          className="button"
+          style={{ width: "auto" }}
+          onClick={() => handleReorder("up")}
+          disabled={reordering}
+          title="Move this gallery up"
+        >
+          &uarr; Up
+        </button>
+        <button
+          className="button"
+          style={{ width: "auto" }}
+          onClick={() => handleReorder("down")}
+          disabled={reordering}
+          title="Move this gallery down"
+        >
+          &darr; Down
+        </button>
 
         <input
           value={nameDraft}
@@ -305,6 +397,45 @@ export default function ReviewPage() {
           >
             <img src={file.thumbnailLink} alt="" draggable={false} />
             <div className="check">{selected.has(file.id) ? "✓" : ""}</div>
+          </div>
+        ))}
+      </div>
+
+      <h2 style={{ width: "100%", maxWidth: "64rem", marginTop: "2.5rem" }}>
+        Published in this gallery ({publishedPhotos.length})
+      </h2>
+
+      {publishedPhotos.length === 0 && (
+        <p className="hero-sub">Nothing published in this gallery yet.</p>
+      )}
+
+      <div className="gallery-grid">
+        {publishedPhotos.map((photo) => (
+          <div key={photo.id} className="photo-card" style={{ position: "relative" }}>
+            <img src={photo.previewUrl} alt="" draggable={false} />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(photo.id);
+              }}
+              disabled={deletingId === photo.id}
+              style={{
+                position: "absolute",
+                top: "0.5rem",
+                right: "0.5rem",
+                background: "rgba(217,105,79,0.9)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "50%",
+                width: "2rem",
+                height: "2rem",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+              title="Delete this photo"
+            >
+              {deletingId === photo.id ? "..." : "✕"}
+            </button>
           </div>
         ))}
       </div>
