@@ -165,6 +165,13 @@ export default function EventGallery() {
         <p className="hero-sub">No photos posted for this day yet - check back soon.</p>
       )}
 
+      {!loading && photos.length > 0 && (
+        <p className="hero-sub" style={{ marginTop: "-1.5rem", marginBottom: "2rem" }}>
+          These are preview versions. Buy your photos and we'll email you a
+          download link for the full-resolution, watermark-free originals.
+        </p>
+      )}
+
       {!loading &&
         Object.entries(timeBlocks)
           .sort()
