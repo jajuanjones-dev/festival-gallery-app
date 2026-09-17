@@ -11,6 +11,7 @@ export default function ReviewPage() {
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const [pending, setPending] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -50,22 +51,12 @@ export default function ReviewPage() {
     if (!unlocked) return;
 
     async function init() {
-      const [currentRes, activeList] = await Promise.all([
-        fetch("/api/admin/current-event", { headers: authHeaders() }),
-        loadEvents(),
-      ]);
-
-      if (currentRes.status === 401) return handleAuthFailure();
-
-      const current = await currentRes.json();
-
-      const merged = activeList.some((e) => e.festivalId === current.festivalId)
-        ? activeList
-        : [{ festivalId: current.festivalId, displayName: current.displayName }, ...activeList];
-
-      setEvents(merged);
-      setFestivalId(current.festivalId);
-      setNameDraft(current.displayName);
+      const activeList = await loadEvents();
+      setEvents(activeList);
+      if (activeList.length > 0) {
+        setFestivalId(activeList[0].festivalId);
+        setNameDraft(activeList[0].displayName);
+      }
     }
 
     init();
@@ -147,6 +138,30 @@ export default function ReviewPage() {
     }
   }
 
+  async function handleCreateGallery() {
+    const name = window.prompt("Name for the new gallery (e.g. Smith Wedding):");
+    if (!name || !name.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/create-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ displayName: name.trim() }),
+      });
+      if (res.status === 401) return handleAuthFailure();
+      const data = await res.json();
+      const newEvent = { festivalId: data.festivalId, displayName: data.displayName };
+      setEvents((prev) => [newEvent, ...prev]);
+      setFestivalId(newEvent.festivalId);
+      setNameDraft(newEvent.displayName);
+      setMessage(`Created new gallery: "${newEvent.displayName}"`);
+    } catch {
+      setMessage("Couldn't create the gallery - try again.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function handleReorder(direction) {
     if (!festivalId || reordering) return;
     setReordering(true);
@@ -158,12 +173,7 @@ export default function ReviewPage() {
       });
       if (res.status === 401) return handleAuthFailure();
       const refreshed = await loadEvents();
-      setEvents((prev) => {
-        const merged = refreshed.some((e) => e.festivalId === festivalId)
-          ? refreshed
-          : prev;
-        return merged;
-      });
+      setEvents(refreshed);
       setMessage("Gallery order updated.");
     } catch {
       setMessage("Couldn't reorder - try again.");
@@ -303,6 +313,7 @@ export default function ReviewPage() {
             padding: "0.6rem 0.8rem",
           }}
         >
+          {events.length === 0 && <option value="">No galleries yet</option>}
           {events.map((e) => (
             <option key={e.festivalId} value={e.festivalId}>
               {e.displayName}
@@ -313,8 +324,17 @@ export default function ReviewPage() {
         <button
           className="button"
           style={{ width: "auto" }}
+          onClick={handleCreateGallery}
+          disabled={creating}
+        >
+          {creating ? "Creating..." : "+ New Gallery"}
+        </button>
+
+        <button
+          className="button"
+          style={{ width: "auto" }}
           onClick={() => handleReorder("up")}
-          disabled={reordering}
+          disabled={reordering || !festivalId}
           title="Move this gallery up"
         >
           &uarr; Up
@@ -323,7 +343,7 @@ export default function ReviewPage() {
           className="button"
           style={{ width: "auto" }}
           onClick={() => handleReorder("down")}
-          disabled={reordering}
+          disabled={reordering || !festivalId}
           title="Move this gallery down"
         >
           &darr; Down
@@ -373,7 +393,7 @@ export default function ReviewPage() {
             className="button"
             style={{ width: "auto" }}
             onClick={handlePublish}
-            disabled={selected.size === 0 || publishing}
+            disabled={selected.size === 0 || publishing || !festivalId}
           >
             {publishing ? "Publishing..." : `Publish ${selected.size || ""}`}
           </button>
