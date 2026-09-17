@@ -12,6 +12,7 @@ export default function ReviewPage() {
   const [savingName, setSavingName] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deletingGallery, setDeletingGallery] = useState(false);
 
   const [pending, setPending] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -160,6 +161,39 @@ export default function ReviewPage() {
       setMessage("Couldn't create the gallery - try again.");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleDeleteGallery() {
+    if (!festivalId) return;
+    const found = events.find((e) => e.festivalId === festivalId);
+    const label = found?.displayName || festivalId;
+    if (!window.confirm(`Delete the entire gallery "${label}" and ALL its published photos? This can't be undone.`)) return;
+    setDeletingGallery(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/delete-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ festivalId }),
+      });
+      if (res.status === 401) return handleAuthFailure();
+      const data = await res.json();
+      const remaining = events.filter((e) => e.festivalId !== festivalId);
+      setEvents(remaining);
+      if (remaining.length > 0) {
+        setFestivalId(remaining[0].festivalId);
+        setNameDraft(remaining[0].displayName);
+      } else {
+        setFestivalId("");
+        setNameDraft("");
+      }
+      setPublishedPhotos([]);
+      setMessage(`Deleted "${label}" and ${data.photosDeleted} photo(s).`);
+    } catch {
+      setMessage("Couldn't delete the gallery - try again.");
+    } finally {
+      setDeletingGallery(false);
     }
   }
 
@@ -359,6 +393,15 @@ export default function ReviewPage() {
           disabled={creating}
         >
           {creating ? "Creating..." : "+ New Gallery"}
+        </button>
+
+        <button
+          className="button"
+          style={{ width: "auto", background: "var(--error, #d9694f)" }}
+          onClick={handleDeleteGallery}
+          disabled={!festivalId || deletingGallery}
+        >
+          {deletingGallery ? "Deleting..." : "Delete Gallery"}
         </button>
 
         <button
