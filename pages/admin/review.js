@@ -9,7 +9,9 @@ export default function ReviewPage() {
   const [events, setEvents] = useState([]);
   const [festivalId, setFestivalId] = useState("");
   const [nameDraft, setNameDraft] = useState("");
+  const [dateDraft, setDateDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [savingDate, setSavingDate] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deletingGallery, setDeletingGallery] = useState(false);
@@ -58,6 +60,7 @@ export default function ReviewPage() {
       if (activeList.length > 0) {
         setFestivalId(activeList[0].festivalId);
         setNameDraft(activeList[0].displayName);
+        setDateDraft(activeList[0].eventDate || "");
       }
     }
 
@@ -115,6 +118,7 @@ export default function ReviewPage() {
     setFestivalId(id);
     const found = events.find((e) => e.festivalId === id);
     setNameDraft(found?.displayName || "");
+    setDateDraft(found?.eventDate || "");
   }
 
   async function handleSaveName() {
@@ -140,6 +144,32 @@ export default function ReviewPage() {
     }
   }
 
+  async function handleSaveDate() {
+    const trimmed = dateDraft.trim();
+    if (!trimmed || !festivalId) return;
+    setSavingDate(true);
+    try {
+      const res = await fetch("/api/admin/set-event-date", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ festivalId, eventDate: trimmed }),
+      });
+      if (res.status === 401) return handleAuthFailure();
+      if (!res.ok) {
+        setMessage("Couldn't save the date - try again.");
+        return;
+      }
+      setEvents((prev) =>
+        prev.map((e) => (e.festivalId === festivalId ? { ...e, eventDate: trimmed } : e))
+      );
+      setMessage(`Event date set to "${trimmed}".`);
+    } catch {
+      setMessage("Couldn't save the date - try again.");
+    } finally {
+      setSavingDate(false);
+    }
+  }
+
   async function handleCreateGallery() {
     const name = window.prompt("Name for the new gallery (e.g. Smith Wedding):");
     if (!name || !name.trim()) return;
@@ -152,11 +182,12 @@ export default function ReviewPage() {
       });
       if (res.status === 401) return handleAuthFailure();
       const data = await res.json();
-      const newEvent = { festivalId: data.festivalId, displayName: data.displayName };
+      const newEvent = { festivalId: data.festivalId, displayName: data.displayName, eventDate: "" };
       setEvents((prev) => [newEvent, ...prev]);
       setFestivalId(newEvent.festivalId);
       setNameDraft(newEvent.displayName);
-      setMessage(`Created new gallery: "${newEvent.displayName}"`);
+      setDateDraft("");
+      setMessage(`Created new gallery: "${newEvent.displayName}" - don't forget to set its event date.`);
     } catch {
       setMessage("Couldn't create the gallery - try again.");
     } finally {
@@ -178,15 +209,21 @@ export default function ReviewPage() {
         body: JSON.stringify({ festivalId }),
       });
       if (res.status === 401) return handleAuthFailure();
+      if (!res.ok) {
+        setMessage(`Couldn't delete the gallery - server returned an error (status ${res.status}).`);
+        return;
+      }
       const data = await res.json();
       const remaining = events.filter((e) => e.festivalId !== festivalId);
       setEvents(remaining);
       if (remaining.length > 0) {
         setFestivalId(remaining[0].festivalId);
         setNameDraft(remaining[0].displayName);
+        setDateDraft(remaining[0].eventDate || "");
       } else {
         setFestivalId("");
         setNameDraft("");
+        setDateDraft("");
       }
       setPublishedPhotos([]);
       setMessage(`Deleted "${label}" and ${data.photosDeleted} photo(s).`);
@@ -301,6 +338,7 @@ export default function ReviewPage() {
   async function handleDelete(photoId) {
     if (!window.confirm("Delete this photo? This can't be undone.")) return;
     setDeletingId(photoId);
+    setMessage("");
     try {
       const res = await fetch("/api/admin/delete-photo", {
         method: "POST",
@@ -308,10 +346,14 @@ export default function ReviewPage() {
         body: JSON.stringify({ photoId }),
       });
       if (res.status === 401) return handleAuthFailure();
+      if (!res.ok) {
+        setMessage(`Couldn't delete that photo - server returned an error (status ${res.status}). It's still published.`);
+        return;
+      }
       setPublishedPhotos((prev) => prev.filter((p) => p.id !== photoId));
-      setMessage("Photo deleted.");
+      setMessage("Photo deleted from the gallery and removed from public view.");
     } catch {
-      setMessage("Couldn't delete - try again.");
+      setMessage("Couldn't delete - try again. The photo is still published.");
     } finally {
       setDeletingId(null);
     }
@@ -422,7 +464,19 @@ export default function ReviewPage() {
         >
           &darr; Down
         </button>
+      </div>
 
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "64rem",
+          display: "flex",
+          gap: "0.75rem",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
         <input
           value={nameDraft}
           onChange={(e) => setNameDraft(e.target.value)}
@@ -444,6 +498,29 @@ export default function ReviewPage() {
           disabled={savingName || nameDraft.trim() === ""}
         >
           {savingName ? "Saving..." : "Save name"}
+        </button>
+
+        <input
+          value={dateDraft}
+          onChange={(e) => setDateDraft(e.target.value)}
+          placeholder="Event date shown to customers (e.g. 8/15/2026)"
+          style={{
+            flex: 1,
+            minWidth: "14rem",
+            background: "var(--surface)",
+            color: "var(--text)",
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            padding: "0.6rem 0.8rem",
+          }}
+        />
+        <button
+          className="button"
+          style={{ width: "auto" }}
+          onClick={handleSaveDate}
+          disabled={savingDate || dateDraft.trim() === ""}
+        >
+          {savingDate ? "Saving..." : "Save date"}
         </button>
       </div>
 
