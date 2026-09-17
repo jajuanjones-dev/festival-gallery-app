@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { downloadFile } from "../../../lib/drive";
 import { makePreview, makeEnhanced } from "../../../lib/preview";
 import { uploadPreview, uploadEnhanced } from "../../../lib/r2";
-import { insertPhoto, markDriveFileProcessed } from "../../../lib/d1";
+import { insertPhoto, markDriveFileProcessed, getEvent } from "../../../lib/d1";
 import { isAuthorized } from "../../../lib/adminAuth";
 import { nowEventLocalTimestamp } from "../../../lib/time";
 
@@ -23,6 +23,17 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Select at least one photo to publish." });
   }
 
+  const event = await getEvent(festivalId);
+  if (!event) {
+    return res.status(404).json({ error: "That gallery no longer exists." });
+  }
+
+  // Every photo published to this gallery uses the gallery's OWN original
+  // date, no matter what day it's actually uploaded on. This keeps every
+  // publish session landing under the same single date tab, instead of
+  // fragmenting one event across multiple days.
+  const galleryDatePrefix = event.created_at.slice(0, 10);
+
   const results = [];
   for (const fileId of driveFileIds) {
     try {
@@ -32,7 +43,11 @@ export default async function handler(req, res) {
         makeEnhanced(original),
       ]);
       const photoId = crypto.randomUUID();
-      const timestamp = nowEventLocalTimestamp();
+
+      const nowStamp = nowEventLocalTimestamp();
+      const timeOfDay = nowStamp.slice(10); // keeps "THH:MM:SS", drops the date
+      const timestamp = `${galleryDatePrefix}${timeOfDay}`;
+
       const previewKey = `${festivalId}/${photoId}-preview.jpg`;
       const enhancedKey = `${festivalId}/${photoId}-full.jpg`;
       await Promise.all([
