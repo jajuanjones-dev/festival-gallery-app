@@ -294,3 +294,21 @@ a {
 .festival-card.past:hover {
   opacity: 1;
 }
+
+/* Background-image based photo display - removes the right-click "Save Image As"
+   option that a real <img> tag exposes, since there's no actual image element
+   to save. Paired with .photo-shield as an extra layer of click protection. */
+.photo-image {
+  width: 100%;
+  height: 220px;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  border-radius: var(--radius);
+}
+
+.photo-shield {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
