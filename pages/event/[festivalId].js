@@ -39,6 +39,16 @@ export default function EventGallery() {
   const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
+    function blockSaveShortcut(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("keydown", blockSaveShortcut);
+    return () => window.removeEventListener("keydown", blockSaveShortcut);
+  }, []);
+
+  useEffect(() => {
     if (!festivalId) return;
     fetch(`/api/photos/${festivalId}`)
       .then((res) => res.json())
@@ -167,13 +177,15 @@ export default function EventGallery() {
                     key={photo.id}
                     className={`photo-card ${selected.has(photo.id) ? "selected" : ""}`}
                     onClick={() => toggleSelect(photo.id)}
+                    onContextMenu={(e) => e.preventDefault()}
                   >
-                    <img
-                      src={photo.previewUrl}
-                      alt=""
-                      draggable={false}
-                      onContextMenu={(e) => e.preventDefault()}
+                    <div
+                      className="photo-image"
+                      style={{ backgroundImage: `url(${photo.previewUrl})` }}
+                      role="img"
+                      aria-label=""
                     />
+                    <div className="photo-shield" />
                     <div className="check">{selected.has(photo.id) ? "✓" : ""}</div>
                   </div>
                 ))}
