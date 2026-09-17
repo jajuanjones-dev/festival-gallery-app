@@ -30,6 +30,15 @@ export default async function handler(req, res) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+
+    // Critical check: "completed" only means the customer finished the checkout
+    // form - it does NOT guarantee the payment actually succeeded. Skip
+    // fulfillment entirely unless Stripe confirms payment_status is "paid".
+    if (session.payment_status !== "paid") {
+      console.warn(`Skipping session ${session.id} - payment_status is "${session.payment_status}", not "paid"`);
+      return res.status(200).json({ received: true, skipped: true });
+    }
+
     const selectedIds = JSON.parse(session.metadata.selected_ids);
     const customerEmail = session.customer_details?.email;
 
