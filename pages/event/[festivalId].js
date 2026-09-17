@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-
-const REFRESH_MS = 15 * 60 * 1000;
 
 function pad(n) {
   return String(n).padStart(2, "0");
@@ -31,7 +29,6 @@ export default function EventGallery() {
   const { festivalId } = router.query;
 
   const [festival, setFestival] = useState(null);
-  const [activeDate, setActiveDate] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -50,6 +47,7 @@ export default function EventGallery() {
 
   useEffect(() => {
     if (!festivalId) return;
+    setLoading(true);
     fetch(`/api/photos/${festivalId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -57,38 +55,13 @@ export default function EventGallery() {
           setError(data.error);
         } else {
           setFestival(data.festival);
-          setActiveDate(data.festival.dates[0]);
+          setPhotos(data.photos || []);
         }
         setLoading(false);
       });
   }, [festivalId]);
 
-  useEffect(() => {
-    if (!festivalId || !activeDate) return;
-
-    let cancelled = false;
-
-    function loadPhotos(showSpinner) {
-      if (showSpinner) setLoading(true);
-      fetch(`/api/photos/${festivalId}?date=${activeDate}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (cancelled) return;
-          setPhotos(data.photos || []);
-          setLoading(false);
-        });
-    }
-
-    loadPhotos(true);
-    const interval = setInterval(() => loadPhotos(false), REFRESH_MS);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [festivalId, activeDate]);
-
-  const timeBlocks = useMemo(() => groupByQuarterHour(photos), [photos]);
+  const timeBlocks = groupByQuarterHour(photos);
 
   function toggleSelect(photoId) {
     setSelected((prev) => {
@@ -143,26 +116,15 @@ export default function EventGallery() {
           </div>
           <p className="hero-sub" style={{ textAlign: "left", margin: 0 }}>
             {festival.displayName}
+            {festival.dates[0] ? ` - ${festival.dates[0]}` : ""}
           </p>
         </div>
-      </div>
-
-      <div className="date-tabs">
-        {festival.dates.map((d) => (
-          <button
-            key={d}
-            className={`date-tab ${d === activeDate ? "active" : ""}`}
-            onClick={() => setActiveDate(d)}
-          >
-            {d}
-          </button>
-        ))}
       </div>
 
       {loading && <p className="hero-sub">Loading photos...</p>}
 
       {!loading && photos.length === 0 && (
-        <p className="hero-sub">No photos posted for this day yet - check back soon.</p>
+        <p className="hero-sub">No photos posted yet - check back soon.</p>
       )}
 
       {!loading && photos.length > 0 && (
