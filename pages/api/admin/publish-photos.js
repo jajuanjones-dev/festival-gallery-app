@@ -5,7 +5,6 @@ import { uploadPreview, uploadEnhanced } from "../../../lib/r2";
 import { insertPhoto, markDriveFileProcessed } from "../../../lib/d1";
 import { isAuthorized } from "../../../lib/adminAuth";
 import { nowEventLocalTimestamp } from "../../../lib/time";
-import { getPhotoTimestamp } from "../../../lib/exif";
 
 export const config = {
   maxDuration: 60,
@@ -33,7 +32,7 @@ export default async function handler(req, res) {
         makeEnhanced(original),
       ]);
       const photoId = crypto.randomUUID();
-      const timestamp = await getPhotoTimestamp(original, nowEventLocalTimestamp());
+      const timestamp = nowEventLocalTimestamp();
       const previewKey = `${festivalId}/${photoId}-preview.jpg`;
       const enhancedKey = `${festivalId}/${photoId}-full.jpg`;
       await Promise.all([
