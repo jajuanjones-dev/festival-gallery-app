@@ -17,6 +17,7 @@ export default function ReviewPage() {
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
   const [message, setMessage] = useState("");
 
   const [publishedPhotos, setPublishedPhotos] = useState([]);
@@ -233,6 +234,36 @@ export default function ReviewPage() {
     }
   }
 
+  async function handleDismiss() {
+    if (selected.size === 0) return;
+    if (!window.confirm(`Dismiss ${selected.size} photo(s)? They won't be published, and won't show up as pending again.`)) return;
+    setDismissing(true);
+    setMessage("");
+
+    const driveFileIds = Array.from(selected);
+    try {
+      const res = await fetch("/api/admin/dismiss-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ driveFileIds }),
+      });
+      if (res.status === 401) return handleAuthFailure();
+      const data = await res.json();
+
+      const okIds = new Set(
+        (data.results || []).filter((r) => r.status === "ok").map((r) => r.fileId)
+      );
+
+      setPending((prev) => prev.filter((f) => !okIds.has(f.id)));
+      setSelected(new Set());
+      setMessage(`Dismissed ${okIds.size} photo${okIds.size === 1 ? "" : "s"}.`);
+    } catch {
+      setMessage("Dismiss failed - try again.");
+    } finally {
+      setDismissing(false);
+    }
+  }
+
   async function handleDelete(photoId) {
     if (!window.confirm("Delete this photo? This can't be undone.")) return;
     setDeletingId(photoId);
@@ -388,6 +419,14 @@ export default function ReviewPage() {
           </button>
           <button className="button" style={{ width: "auto" }} onClick={clearSelection}>
             Clear
+          </button>
+          <button
+            className="button"
+            style={{ width: "auto", background: "var(--error, #d9694f)" }}
+            onClick={handleDismiss}
+            disabled={selected.size === 0 || dismissing}
+          >
+            {dismissing ? "Dismissing..." : `Dismiss ${selected.size || ""}`}
           </button>
           <button
             className="button"
