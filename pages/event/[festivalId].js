@@ -129,8 +129,9 @@ export default function EventGallery() {
 
       {!loading && photos.length > 0 && (
         <p className="hero-sub" style={{ marginTop: "-1.5rem", marginBottom: "2rem" }}>
-          These are preview versions. Buy your photos and we'll email you a
-          download link for the full-resolution, watermark-free originals.
+          These are preview versions. Buy your photos and we'll instantly email
+          you a download link straight to your phone - full-resolution,
+          watermark-free, and ready to post right away.
         </p>
       )}
 
